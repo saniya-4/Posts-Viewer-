@@ -23,14 +23,29 @@ app.get('/logout',(req,res)=>
     res.cookie("token","");
     res.redirect("/login"); 
 })
-app.get('/profile',isLoggedIn,(req,res)=>
+app.get('/profile',isLoggedIn,async(req,res)=>
 {
-    console.log(req.user);
-    res.render("login");
+    let user=await userModel.findOne({email:req.user.email}).populate("post");
+    
+    console.log(user);
+    res.render("profile",{user});
+})
+app.post("/post",isLoggedIn,async(req,res)=>
+{
+    let user=await userModel.findOne({email:req.user.email});
+    let {content}=req.body;
+    let post=await postModel.create({
+        user:user._id,
+        content:content
+    })
+    user.post.push(post._id);
+    await user.save();
+    res.redirect("/profile");
 })
 app.post('/login',async (req,res)=>
 {
     let {email,password}=req.body;
+
     let user= await userModel.findOne({email})
     if(!user)
     {
@@ -42,7 +57,7 @@ app.post('/login',async (req,res)=>
        
         let token=jwt.sign({email:email,userid:user._id},"shhh")
         res.cookie("token",token);
-         res.status(200).send("You can login");
+         res.redirect("/profile")
        }
        else{
         res.redirect("/login");
@@ -78,12 +93,13 @@ app.post('/register',async(req,res)=>
 function isLoggedIn(req,res,next){
     if(req.cookies.token==="")
     {
-        res.send("You must be login first");
+        res.redirect("/login");
     }
     else{
         let data=jwt.verify(req.cookies.token,"shhh")
         req.user=data;
+        next();
     }
-    next();
+    
 }
 app.listen(3000);
