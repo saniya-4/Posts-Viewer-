@@ -4,7 +4,8 @@ const cookieParser=require('cookie-parser')
 const userModel=require("./models/user");
 const postModel=require("./models/post");
 const bcrypt=require('bcrypt')
-const jwt=require('jsonwebtoken')
+const jwt=require('jsonwebtoken');
+const user = require('./models/user');
 app.set("view engine","ejs")
 app.use(express.json());
 app.use(express.urlencoded({extended:true}));
@@ -23,12 +24,31 @@ app.get('/logout',(req,res)=>
     res.cookie("token","");
     res.redirect("/login"); 
 })
+app.get("/like/:id",isLoggedIn,async(req,res)=>
+{
+    let  post=await postModel.findOne({_id:req.params.id}).populate("user");
+     if(post.likes.indexOf(req.user.userId)===-1)
+     {
+        post.likes.push(req.user.userId);
+     }
+     else{
+        post.likes.splice(post.likes.indexOf(req.user.userId),1);
+     }
+    await post.save();
+    res.redirect("/profile");
+
+})
 app.get('/profile',isLoggedIn,async(req,res)=>
 {
     let user=await userModel.findOne({email:req.user.email}).populate("post");
     
     console.log(user);
     res.render("profile",{user});
+})
+app.get('/edit/:id',isLoggedIn,async(req,res)=>
+{
+    let post=await postModel.findOne({_id:req.params.id}).populate("user");
+    res.render("edit",{post});
 })
 app.post("/post",isLoggedIn,async(req,res)=>
 {
@@ -89,6 +109,11 @@ app.post('/register',async(req,res)=>
     })  
 
     })
+})
+app.post("/update/:id",isLoggedIn,async(req,res)=>
+{
+    let post=await postModel.findOneAndUpdate({_id:req.params.id},{content:req.body.content});
+    res.redirect("/profile");
 })
 function isLoggedIn(req,res,next){
     if(req.cookies.token==="")
