@@ -4,12 +4,32 @@ const cookieParser=require('cookie-parser')
 const userModel=require("./models/user");
 const postModel=require("./models/post");
 const bcrypt=require('bcrypt')
+const multer=require('multer');
+const crypto=require('crypto');
 const jwt=require('jsonwebtoken');
 const user = require('./models/user');
+const path=require('path');
 app.set("view engine","ejs")
 app.use(express.json());
 app.use(express.urlencoded({extended:true}));
 app.use(cookieParser());
+const storage=multer.diskStorage({
+    destination:function(req,file,cb){
+        cb(null,'./public/images/uploads')
+    },
+    filename:function(req,file,cb)
+    {
+ crypto.randomBytes(12,function(err,bytes)
+   {
+    const fn=bytes.toString("hex")+path.extname(file.originalname);
+            cb(null,fn)
+
+    
+    })  
+
+    }
+})
+const upload=multer({storage:storage})
 app.get('/',(req,res)=>
 {
     res.render("index");
@@ -49,6 +69,10 @@ app.get('/edit/:id',isLoggedIn,async(req,res)=>
 {
     let post=await postModel.findOne({_id:req.params.id}).populate("user");
     res.render("edit",{post});
+})
+app.get('/test',(req,res)=>
+{
+    res.render("test");
 })
 app.post("/post",isLoggedIn,async(req,res)=>
 {
@@ -114,6 +138,11 @@ app.post("/update/:id",isLoggedIn,async(req,res)=>
 {
     let post=await postModel.findOneAndUpdate({_id:req.params.id},{content:req.body.content});
     res.redirect("/profile");
+})
+app.post('/upload',upload.single("image"),(req,res)=>
+{
+    console.log(req.file)
+
 })
 function isLoggedIn(req,res,next){
     if(req.cookies.token==="")
