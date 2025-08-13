@@ -5,6 +5,7 @@ const userModel=require("./models/user");
 const postModel=require("./models/post");
 const bcrypt=require('bcrypt')
 const multer=require('multer');
+const upload=require('./config/multerconfig')
 const crypto=require('crypto');
 const jwt=require('jsonwebtoken');
 const user = require('./models/user');
@@ -13,6 +14,7 @@ app.set("view engine","ejs")
 app.use(express.json());
 app.use(express.urlencoded({extended:true}));
 app.use(cookieParser());
+app.use(express.static(path.join(__dirname,"public")));
 const storage=multer.diskStorage({
     destination:function(req,file,cb){
         cb(null,'./public/images/uploads')
@@ -29,11 +31,16 @@ const storage=multer.diskStorage({
 
     }
 })
-const upload=multer({storage:storage})
-app.get('/',(req,res)=>
-{
-    res.render("index");
 
+app.get("/profile/upload",(req,res)=>
+{
+    res.render("profileupload");
+})
+app.post("/upload",isLoggedIn,upload.single("image"),async(req,res)=>
+{
+    let user=await userModel.findOne({email:req.user.email})
+    user.profilepic=req.file.filename;
+    await user.save();
 })
 app.get('/login',(req,res)=>
 {
@@ -70,10 +77,7 @@ app.get('/edit/:id',isLoggedIn,async(req,res)=>
     let post=await postModel.findOne({_id:req.params.id}).populate("user");
     res.render("edit",{post});
 })
-app.get('/test',(req,res)=>
-{
-    res.render("test");
-})
+
 app.post("/post",isLoggedIn,async(req,res)=>
 {
     let user=await userModel.findOne({email:req.user.email});
@@ -139,11 +143,7 @@ app.post("/update/:id",isLoggedIn,async(req,res)=>
     let post=await postModel.findOneAndUpdate({_id:req.params.id},{content:req.body.content});
     res.redirect("/profile");
 })
-app.post('/upload',upload.single("image"),(req,res)=>
-{
-    console.log(req.file)
 
-})
 function isLoggedIn(req,res,next){
     if(req.cookies.token==="")
     {
